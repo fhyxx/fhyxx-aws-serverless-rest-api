@@ -25,7 +25,7 @@ resource "aws_dynamodb_table" "tasks" {
   server_side_encryption {
     enabled = true
   }
-  deletion_protection_enabled = true
+  deletion_protection_enabled = var.enable_deletion_protection
   tags                        = { Project = var.project_name }
 }
 
@@ -47,7 +47,7 @@ resource "aws_cognito_user_pool" "users" {
       priority = 1
     }
   }
-  deletion_protection = "ACTIVE"
+  deletion_protection = var.enable_deletion_protection ? "ACTIVE" : "INACTIVE"
   tags                = { Project = var.project_name }
 }
 

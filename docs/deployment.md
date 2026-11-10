@@ -91,3 +91,26 @@ The Lambda execution role is intentionally limited to the task table and its own
 ## Obtain a Cognito token and call the API
 
 Create/authenticate a test user through Cognito managed login using authorization-code flow with PKCE. Request `openid email tasks/read tasks/write`, redeem the authorization code for an access token, and keep the token private and out of shell history/logs where practical. Use the API endpoint Terraform output and examples in `examples/requests.sh`. API Gateway should reject missing route scopes before invoking Lambda. Separately verify that one user's scoped token cannot read, update, or delete another user's task: route scopes do not confer ownership. Revoke test credentials and remove test data after an authorized test window.
+
+
+## Controlled teardown after portfolio verification
+
+The DynamoDB table and Cognito user pool have deletion protection enabled by default. Keep it enabled during normal operation. After the API has been tested and the evidence captured, remove billable resources if the project is not intended to remain online. Teardown is a two-step, reviewed operation:
+
+1. In the deployment tfvars file, set `enable_deletion_protection = false` (the default is `true`). Review the plan and apply only this protection change.
+2. Review a fresh destroy plan and, after confirming the account, region, workspace and exact resource list, run `terraform destroy`.
+
+Example commands from the Terraform directory:
+
+```powershell
+terraform plan -var-file="terraform.tfvars" -out=disable-protection.tfplan
+terraform show disable-protection.tfplan
+# Apply only after confirming this plan changes the two protection settings and nothing else.
+terraform apply disable-protection.tfplan
+terraform plan -destroy -var-file="terraform.tfvars" -out=teardown.tfplan
+terraform show teardown.tfplan
+# Apply only after confirming the account, region and full resource list.
+terraform apply teardown.tfplan
+```
+
+Do not delete the local Terraform state or state backups before successful teardown verification. Confirm the API, Lambda, DynamoDB table, Cognito pool/domain, log groups and IAM resources are gone in the intended account and region. Review any retained CloudWatch log groups or other manually created resources separately. If data must be retained, export and verify it before teardown; destroying the table is destructive.

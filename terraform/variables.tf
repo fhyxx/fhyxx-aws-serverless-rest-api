@@ -50,3 +50,9 @@ variable "log_retention_days" {
     error_message = "Choose a supported log retention period."
   }
 }
+
+variable "enable_deletion_protection" {
+  description = "Protect the DynamoDB table and Cognito user pool from accidental deletion; disable only for an approved teardown."
+  type        = bool
+  default     = true
+}
