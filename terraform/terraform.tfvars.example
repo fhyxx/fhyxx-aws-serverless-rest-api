@@ -2,6 +2,9 @@ aws_region             = "us-east-1"
 project_name           = "task-api"
 lambda_artifact_path   = "../dist/task_api.zip"
 cognito_domain_prefix = "task-api-choose-a-globally-unique-prefix"
-cognito_callback_urls  = ["https://localhost/callback"]
-cognito_logout_urls    = ["https://localhost/logout"]
+cognito_callback_urls  = ["http://localhost:3000/callback"]
+cognito_logout_urls    = ["http://localhost:3000/logout"]
 log_retention_days     = 30
+
+cors_allowed_origins      = ["http://localhost:3000"]
+enable_deletion_protection = true
