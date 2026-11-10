@@ -1,0 +1,7 @@
+aws_region             = "us-east-1"
+project_name           = "task-api"
+lambda_artifact_path   = "../dist/task_api.zip"
+cognito_domain_prefix = "task-api-choose-a-globally-unique-prefix"
+cognito_callback_urls  = ["https://localhost/callback"]
+cognito_logout_urls    = ["https://localhost/logout"]
+log_retention_days     = 30

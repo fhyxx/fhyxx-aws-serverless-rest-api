@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: Cognito-authenticated REST API for user-owned tasks.
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com
+    variables:
+      apiId: { default: example }
+      region: { default: us-east-1 }
+paths:
+  /tasks:
+    post:
+      operationId: createTask
+      summary: Create a task for the authenticated user
+      description: API Gateway requires the tasks/write OAuth scope; Lambda independently applies ownership from the validated sub claim.
+      security:
+        - CognitoOAuth: [tasks/write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    get:
+      operationId: listTasks
+      summary: List the authenticated user's tasks
+      description: API Gateway requires the tasks/read OAuth scope; results are queried in the validated user's DynamoDB partition.
+      security:
+        - CognitoOAuth: [tasks/read]
+      parameters:
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - in: query
+          name: cursor
+          schema: {type: string}
+          description: Opaque cursor returned by the preceding page.
+      responses:
+        '200':
+          description: A page of tasks
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /tasks/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getTask
+      summary: Get an owned task
+      description: API Gateway requires the tasks/read OAuth scope; Lambda scopes the lookup to the validated user's partition.
+      security:
+        - CognitoOAuth: [tasks/read]
+      responses:
+        '200':
+          description: Task retrieved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      operationId: updateTask
+      summary: Update mutable fields on an owned task
+      description: API Gateway requires the tasks/write OAuth scope; Lambda scopes the update to the validated user's partition.
+      security:
+        - CognitoOAuth: [tasks/write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskPatch'}
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      operationId: deleteTask
+      summary: Delete an owned task
+      description: API Gateway requires the tasks/write OAuth scope; Lambda scopes the deletion to the validated user's partition.
+      security:
+        - CognitoOAuth: [tasks/write]
+      responses:
+        '204': {description: Task deleted}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  securitySchemes:
+    CognitoOAuth:
+      type: oauth2
+      description: Use Cognito authorization-code flow. API Gateway enforces route scopes; Lambda still enforces user ownership from the validated sub claim.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-cognito-domain.auth.us-east-1.amazoncognito.com/oauth2/authorize
+          tokenUrl: https://your-cognito-domain.auth.us-east-1.amazoncognito.com/oauth2/token
+          scopes:
+            openid: Authenticate a Cognito user.
+            email: Read the authenticated user's email claim.
+            tasks/read: Read tasks through this API.
+            tasks/write: Create, update, or delete tasks through this API.
+  schemas:
+    TaskInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: {type: string, minLength: 1, maxLength: 200}
+        description: {type: string, maxLength: 5000, default: ''}
+        status: {type: string, enum: [open, in_progress, completed], default: open}
+        due_date: {type: string, pattern: '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+    TaskPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: {type: string, minLength: 1, maxLength: 200}
+        description: {type: string, maxLength: 5000}
+        status: {type: string, enum: [open, in_progress, completed]}
+        due_date: {type: string, pattern: '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+    Task:
+      type: object
+      additionalProperties: false
+      required: [id, title, description, status, due_date, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 200}
+        description: {type: string, maxLength: 5000}
+        status: {type: string, enum: [open, in_progress, completed]}
+        due_date: {type: string, pattern: '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    TaskResponse:
+      type: object
+      required: [task]
+      properties:
+        task: {$ref: '#/components/schemas/Task'}
+    TaskPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Task'}
+        next_cursor: {type: [string, 'null']}
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Unauthorized:
+      description: API Gateway rejects a missing or invalid JWT before Lambda invocation.
+    Forbidden:
+      description: API Gateway rejects a valid JWT that lacks the OAuth scope required by this route.
+    NotFound:
+      description: Task does not exist for the authenticated user
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
