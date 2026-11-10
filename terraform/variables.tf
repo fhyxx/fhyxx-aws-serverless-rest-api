@@ -62,7 +62,10 @@ variable "cors_allowed_origins" {
   type        = list(string)
   default     = ["http://localhost:3000"]
   validation {
-    condition     = length(var.cors_allowed_origins) > 0 && alltrue([for origin in var.cors_allowed_origins : can(regex("^https://[^/]+$|^http://localhost(:[0-9]+)?$", origin))])
-    error_message = "Each CORS origin must be an HTTPS origin or an HTTP localhost origin, without a path."
+    condition = length(var.cors_allowed_origins) > 0 && alltrue([
+      for origin in var.cors_allowed_origins :
+      can(regex("^https://([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(:[0-9]{1,5})?$|^http://localhost(:[0-9]{1,5})?$", origin))
+    ])
+    error_message = "Each origin must be an exact HTTPS host origin or an HTTP localhost origin, with no wildcard, path, query, or fragment."
   }
 }
