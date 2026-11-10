@@ -51,7 +51,7 @@ resource "aws_cognito_user_pool" "users" {
   tags                = { Project = var.project_name }
 }
 
-resource "aws_cognito_user_pool_resource_server" "tasks" {
+resource "aws_cognito_resource_server" "tasks" {
   identifier   = "tasks"
   name         = "${var.project_name}-tasks-api"
   user_pool_id = aws_cognito_user_pool.users.id
@@ -77,8 +77,8 @@ resource "aws_cognito_user_pool_client" "api" {
   allowed_oauth_scopes = [
     "openid",
     "email",
-    "${aws_cognito_user_pool_resource_server.tasks.identifier}/read",
-    "${aws_cognito_user_pool_resource_server.tasks.identifier}/write",
+    "${aws_cognito_resource_server.tasks.identifier}/read",
+    "${aws_cognito_resource_server.tasks.identifier}/write",
   ]
   supported_identity_providers = ["COGNITO"]
   callback_urls                = var.cognito_callback_urls
