@@ -56,3 +56,13 @@ variable "enable_deletion_protection" {
   type        = bool
   default     = true
 }
+
+variable "cors_allowed_origins" {
+  description = "Exact browser origins permitted to call the API."
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+  validation {
+    condition     = length(var.cors_allowed_origins) > 0 && alltrue([for origin in var.cors_allowed_origins : can(regex("^https://[^/]+$|^http://localhost(:[0-9]+)?$", origin))])
+    error_message = "Each CORS origin must be an HTTPS origin or an HTTP localhost origin, without a path."
+  }
+}
