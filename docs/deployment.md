@@ -1,116 +1,100 @@
 # Local packaging and deployment guide
 
-This guide documents the controlled portfolio deployment and verification workflow. The project has not yet been deployed or live-verified. The owner has authorized proceeding with a reviewed, cost-conscious temporary deployment after account identity, configuration and plan have been verified. Never put credentials in the repository.
+This project has **not been deployed to AWS or live-verified**. The repository contains a tested application, a locally inspected Lambda package, and validated Terraform configuration. Deployment is a separate, optional activity that can create billable resources. Do not run `terraform apply` or `terraform destroy` without explicit authorization for the exact operation and a reviewed plan. Never put credentials in the repository.
 
 ## Prerequisites
 
-- Python 3.12 and Terraform 1.9 or compatible with the version constraint.
-- An AWS account, approved region, least-privilege deployment role, and explicit approval for estimated costs.
-- A confirmed browser origin for the API CORS allow list. For the local desktop demonstration, use `http://localhost:3000`; do not expose a wildcard origin.
-- A globally unique Cognito domain prefix and exact OAuth callback/logout URLs. The local desktop demonstration uses `http://localhost:3000/callback` and `http://localhost:3000/logout`; configure a different exact origin if the client changes.
+- Python 3.12 for the application and Lambda package.
+- Terraform 1.16.6 (the CI version) or a compatible version satisfying `versions.tf`.
+- An AWS account, approved region, least-privilege deployment role, and explicit approval for estimated costs before deployment.
+- A confirmed browser origin for the API CORS allow list. The current default is `http://localhost:3000`; do not expose a wildcard origin.
+- A globally unique Cognito domain prefix and exact OAuth callback/logout URLs. Replace the example values before deployment.
 - A decision on table retention/deletion protection, log retention, alarms, and restore ownership.
 
 ## Build a Lambda artifact
 
-Use a Linux-compatible build environment matching the Lambda architecture (ARM64) when adding native dependencies. From the project root, the packaging helper installs the pinned boto3 SDK and copies the application source into the Lambda artifact:
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\Activate.ps1
-python -m pip install -e ".[dev]"
-python scripts/build_lambda.py
-```
-
-Review the artifact contents before use. Terraform's archive data source packages the prepared `build/lambda-package/` directory. Run the build helper again after source or dependency changes, then validate and review the generated plan. Confirm the artifact's architecture and handler import before an approved deployment.
-
-### Windows PowerShell packaging check
-
-The current machine was last checked with Python 3.15 and 3.14 only; `py -3.12 --version` reported that no suitable runtime is installed. The requested `winget install --id Python.Python.3.12 -e` was attempted, but this Codex-managed shell could not launch `C:\Users\Fhyx\AppData\Local\Microsoft\WindowsApps\winget.exe` (`The file cannot be accessed by the system`). The Lambda packaging helper was not run with another Python version as a substitute. Run the install command from a normal PowerShell window and then open a new window:
+The packaging helper installs the pinned Boto3 SDK and stages the application source into the Lambda package directory. From the project root:
 
 ```powershell
-winget install --id Python.Python.3.12 -e
-```
-
-After Python 3.12 is installed and registered with the launcher, run these commands from a fresh project checkout (the helper intentionally refuses to overwrite existing generated output):
-
-```powershell
-$project = 'C:\Users\Fhyx\Documents\Codex\2026-11-08\chrome-plugin-chrome-openai-bundled-x20\aws-serverless-rest-api'
-Set-Location $project
-py -3.12 --version
 py -3.12 -m venv .venv312
 & .\.venv312\Scripts\python.exe -m pip install --upgrade pip
 & .\.venv312\Scripts\python.exe -m pip install -e ".[dev]"
 & .\.venv312\Scripts\python.exe scripts\build_lambda.py
-& .\.venv312\Scripts\python.exe -c "import zipfile; p='dist/task_api.zip'; z=zipfile.ZipFile(p); assert z.testzip() is None; n=set(z.namelist()); assert 'task_api/handlers/http.py' in n and 'boto3/__init__.py' in n; print('Python 3.12 Lambda ZIP contents: verified')"
 ```
 
-The final command checks the generated ZIP's integrity and confirms the handler and pinned boto3 package are present. It does not deploy or contact AWS.
+Review the artifact contents before use. Terraform's archive data source packages the prepared `build/lambda-package/` directory. Rebuild after source or dependency changes. Confirm the artifact's architecture and handler import before an approved deployment. If native dependencies are introduced, build in a Linux-compatible environment matching the configured Lambda ARM64 architecture.
+
+### Previously verified local artifact
+
+The local `dist/task_api.zip` was built using Python 3.12.10 and inspected. At the time of inspection:
+
+- ZIP integrity check passed; the handler and pinned runtime dependencies were present.
+- Handler import and Python compilation passed under Python 3.12.10.
+- No native extension modules or private-key files were found.
+- Compressed size was approximately 14.1 MB and uncompressed size approximately 20.1 MB.
+- SHA-256: `8B24A0192963774F6F874702E3A8A7E85E4E418CB65B0F4384625A3B66BC4BFB`.
+
+This records a previous local artifact inspection, not a claim that the artifact is rebuilt from every future source revision or that it has executed on AWS ARM64 hardware. Rebuild and re-inspect it whenever application source or dependencies change.
 
 ## Validate, review and deploy (future operator action)
 
-```bash
-cd terraform
-terraform init
-terraform fmt -check -recursive .
-terraform validate
-terraform plan -out=tfplan
-terraform show tfplan
-```
-
-Review the plan, account and Region, IAM diff, retention settings, Cognito configuration, CORS origin, and expected costs. The owner has authorized the portfolio deployment, but do not apply until the account identity and exact plan have been verified in the active session:
-
-```bash
-terraform apply tfplan
-```
-
-The repository CI checks use `init -backend=false` and `validate`; they do not create AWS resources. `terraform apply` creates billable AWS resources and must only be run against the verified portfolio account with the reviewed plan. The deployment is temporary: complete the API tests and evidence capture, then follow the controlled teardown section below.
-
-The first successful `terraform init -backend=false` creates `terraform/.terraform.lock.hcl` with the selected provider checksums. Keep that lockfile under version control; Terraform uses it on later init runs unless `-upgrade` is explicitly requested. Do not delete it to bypass provider issues. The provider versions are exactly pinned in `versions.tf`.
-
-## Windows provider initialization note
-
-On this Windows environment, `terraform init -backend=false` could not complete. The documented LocalAppData procedure failed when PowerShell tried to create `C:\Users\Fhyx\AppData\Local\terraform.d\plugin-cache` (`Access to the path ... is denied`), then Terraform could not reach `registry.terraform.io` (`connectex: An attempt was made to access a socket in a way forbidden by its access permissions`). A retry in a project-owned temp/cache with network permission downloaded pinned provider packages but was stopped while still running and did not return a successful result. Earlier attempts reported `failed to compute checksum` with `Access is denied` on temporary `terraform-provider*` files. The project temp folder itself grants the current user FullControl and passed a direct read/write/delete probe; this does not establish permissions for LocalAppData or explain Terraform's provider-file failure. The exact Windows security/process component has not been identified. A 14-day read-only Defender event query found no matching detection/remediation/ASR block events (IDs 1116, 1117, 1121, 1122); `Get-MpThreatDetection` returned `Access denied`, so the Protection History UI could not be confirmed from this session. The subsequent `terraform -chdir=terraform validate` reports that `hashicorp/archive` and `hashicorp/aws` are missing because initialization did not install them; validation is therefore blocked in this environment. No lockfile exists because initialization did not complete. Do not disable security controls or remove a lockfile to work around this.
-
-In a normal, non-restricted PowerShell session, set a user-owned temp and provider cache, then retry without `-upgrade`:
+From the repository root:
 
 ```powershell
-$project = 'C:\Users\Fhyx\Documents\Codex\2026-11-08\chrome-plugin-chrome-openai-bundled-x20\aws-serverless-rest-api'
-$env:TEMP = Join-Path $env:LOCALAPPDATA 'Temp'
-$env:TMP = $env:TEMP
-$env:TF_PLUGIN_CACHE_DIR = Join-Path $env:LOCALAPPDATA 'terraform.d\plugin-cache'
-New-Item -ItemType Directory -Force -Path $env:TF_PLUGIN_CACHE_DIR | Out-Null
-Set-Location $project
-terraform -chdir=terraform init -backend=false
+terraform fmt -check -recursive terraform
+terraform -chdir=terraform init -backend=false -lockfile=readonly
 terraform -chdir=terraform validate
+terraform -chdir=terraform plan -out=tfplan
+terraform -chdir=terraform show tfplan
 ```
 
-If the same checksum staging error occurs, inspect Windows Security Protection History and your organization's endpoint-protection logs for temporary `terraform-provider*` files under the selected temp/cache paths. Ask the device administrator for an approved exception for Terraform's official, checksum-verified provider binaries or for help with the affected folder ACL; do not broadly disable Defender. After successful initialization, retain and commit the generated lockfile; CI can then use `terraform init -backend=false -lockfile=readonly` to enforce it.
+The first three commands validate configuration and providers; they do not create AWS resources. CI runs Terraform 1.16.6, checks formatting, initializes providers using the committed lockfile in read-only mode, and validates the configuration.
 
-The Lambda execution role is intentionally limited to the task table and its own log group. The separate Terraform deployment identity must also have the API Gateway and Cognito management permissions, plus CloudWatch Logs delivery permissions required to configure HTTP API access logging (for example `logs:CreateLogDelivery`, `logs:PutResourcePolicy`, `logs:DescribeResourcePolicies`, and related log-delivery actions). Do not add these deployment permissions to the Lambda runtime role.
+Before any deployment, review the active AWS account and Region, Terraform workspace and state, resource names, IAM changes, retention settings, Cognito configuration, CORS origin, and estimated costs. Confirm the Cognito domain prefix is globally available and callback/logout URLs match the intended client. The deployment identity needs the API Gateway and Cognito management permissions, plus CloudWatch Logs delivery permissions required to configure HTTP API access logging (for example `logs:CreateLogDelivery`, `logs:PutResourcePolicy`, `logs:DescribeResourcePolicies`, and related log-delivery actions). Do not add these deployment permissions to the Lambda runtime role.
+
+A plan is not deployment approval. Only after the owner explicitly approves the exact reviewed plan may an authorized operator run:
+
+```powershell
+terraform -chdir=terraform apply tfplan
+```
+
+This creates AWS resources and can incur charges. The project has no live endpoint until deployment and post-deployment verification are completed.
+
+## Configuration decisions required before deployment
+
+- Set `cognito_domain_prefix` to a globally unique prefix.
+- Replace the example callback and logout URLs with exact HTTPS URLs for the real frontend, or the intended localhost URLs for a local demonstration.
+- Set `cors_allowed_origins` to the exact frontend origin.
+- Review `aws_region`, `project_name`, log retention and deletion protection.
+- Establish account budgets/alerts and estimate service charges for API Gateway, Lambda, DynamoDB, Cognito, CloudWatch Logs, PITR, and data transfer.
+- Decide who owns user onboarding/email delivery, recovery, monitoring, backups, restore testing, incident response, and data retention.
+
+The DynamoDB table uses on-demand billing, point-in-time recovery, server-side encryption and deletion protection by default. Cognito user-pool deletion protection is also enabled by default. Keep protection enabled during normal operation.
 
 ## Obtain a Cognito token and call the API
 
-Create/authenticate a test user through Cognito managed login using authorization-code flow with PKCE. Request `openid email tasks/read tasks/write`, redeem the authorization code for an access token, and keep the token private and out of shell history/logs where practical. Use the API endpoint Terraform output and examples in `examples/requests.sh`. API Gateway should reject missing route scopes before invoking Lambda. Separately verify that one user's scoped token cannot read, update, or delete another user's task: route scopes do not confer ownership. Revoke test credentials and remove test data after an authorized test window.
+After an explicitly approved deployment, create/authenticate a test user through Cognito managed login using authorization-code flow with PKCE. Request `openid email tasks/read tasks/write`, redeem the authorization code for an access token, and keep the token private and out of shell history/logs where practical. Use the API endpoint Terraform output and examples in `examples/requests.sh`.
 
+Verify that API Gateway rejects missing route scopes before invoking Lambda. Separately verify that one user's scoped token cannot read, update, or delete another user's task: route scopes do not confer ownership. Revoke test credentials and remove test data after the authorized test window.
 
-## Controlled teardown after portfolio verification
+## Controlled teardown after an approved temporary deployment
 
-The DynamoDB table and Cognito user pool have deletion protection enabled by default. Keep it enabled during normal operation. After the API has been tested and the evidence captured, remove billable resources if the project is not intended to remain online. Teardown is a two-step, reviewed operation:
+Do not destroy resources until the owner has explicitly approved teardown and the account, Region, workspace, state and resource list have been checked. The DynamoDB table and Cognito user pool have deletion protection enabled by default.
 
-1. In the deployment tfvars file, set `enable_deletion_protection = false` (the default is `true`). Review the plan and apply only this protection change.
-2. Review a fresh destroy plan and, after confirming the account, region, workspace and exact resource list, run `terraform destroy`.
+1. In the deployment tfvars file, set `enable_deletion_protection = false`. Review and apply only the protection change, after approval.
+2. Generate a fresh destroy plan, inspect every resource, and obtain explicit approval before applying it.
 
 Example commands from the Terraform directory:
 
 ```powershell
 terraform plan -var-file="terraform.tfvars" -out=disable-protection.tfplan
 terraform show disable-protection.tfplan
-# Apply only after confirming this plan changes the two protection settings and nothing else.
+# Apply only after confirming this plan changes the intended protection settings and nothing else.
 terraform apply disable-protection.tfplan
 terraform plan -destroy -var-file="terraform.tfvars" -out=teardown.tfplan
 terraform show teardown.tfplan
-# Apply only after confirming the account, region and full resource list.
+# Apply only after explicit approval of this exact destroy plan.
 terraform apply teardown.tfplan
 ```
 
-Do not delete the local Terraform state or state backups before successful teardown verification. Confirm the API, Lambda, DynamoDB table, Cognito pool/domain, log groups and IAM resources are gone in the intended account and region. Review any retained CloudWatch log groups or other manually created resources separately. If data must be retained, export and verify it before teardown; destroying the table is destructive.
+Do not delete local Terraform state or state backups before successful teardown verification. Confirm the API, Lambda, DynamoDB table, Cognito pool/domain, log groups and IAM resources are gone in the intended account and Region. Review any retained CloudWatch log groups or other manually created resources separately. If data must be retained, export and verify it before teardown; destroying the table is destructive.
