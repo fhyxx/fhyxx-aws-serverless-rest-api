@@ -56,3 +56,16 @@ variable "enable_deletion_protection" {
   type        = bool
   default     = true
 }
+
+variable "cors_allowed_origins" {
+  description = "Exact browser origins permitted to call the API."
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+  validation {
+    condition = length(var.cors_allowed_origins) > 0 && alltrue([
+      for origin in var.cors_allowed_origins :
+      can(regex("^https://([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(:[0-9]{1,5})?$|^http://localhost(:[0-9]{1,5})?$", origin))
+    ])
+    error_message = "Each origin must be an exact HTTPS host origin or an HTTP localhost origin, with no wildcard, path, query, or fragment."
+  }
+}

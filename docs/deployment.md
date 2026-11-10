@@ -1,13 +1,13 @@
 # Local packaging and deployment guide
 
-This guide documents deployment commands for a future authorized operator. **This project has not been deployed, and these commands have not been run against AWS.** Never put credentials in the repository.
+This guide documents the controlled portfolio deployment and verification workflow. The project has not yet been deployed or live-verified. The owner has authorized proceeding with a reviewed, cost-conscious temporary deployment after account identity, configuration and plan have been verified. Never put credentials in the repository.
 
 ## Prerequisites
 
 - Python 3.12 and Terraform 1.9 or compatible with the version constraint.
 - An AWS account, approved region, least-privilege deployment role, and explicit approval for estimated costs.
-- A confirmed web frontend origin for the API CORS allow list.
-- A globally unique Cognito domain prefix and exact OAuth callback/logout URLs for the public frontend.
+- A confirmed browser origin for the API CORS allow list. For the local desktop demonstration, use `http://localhost:3000`; do not expose a wildcard origin.
+- A globally unique Cognito domain prefix and exact OAuth callback/logout URLs. The local desktop demonstration uses `http://localhost:3000/callback` and `http://localhost:3000/logout`; configure a different exact origin if the client changes.
 - A decision on table retention/deletion protection, log retention, alarms, and restore ownership.
 
 ## Build a Lambda artifact
@@ -25,7 +25,7 @@ Review the artifact contents before use. Terraform's archive data source package
 
 ### Windows PowerShell packaging check
 
-The current machine exposes only Python 3.15 through `py -0p`; `py -3.12 --version` reports that no suitable runtime is installed. The requested `winget install --id Python.Python.3.12 -e` was attempted, but this Codex-managed shell could not launch `C:\Users\Fhyx\AppData\Local\Microsoft\WindowsApps\winget.exe` (`The file cannot be accessed by the system`). The Lambda packaging helper was not run with another Python version as a substitute. Run the install command from a normal PowerShell window and then open a new window:
+The current machine was last checked with Python 3.15 and 3.14 only; `py -3.12 --version` reported that no suitable runtime is installed. The requested `winget install --id Python.Python.3.12 -e` was attempted, but this Codex-managed shell could not launch `C:\Users\Fhyx\AppData\Local\Microsoft\WindowsApps\winget.exe` (`The file cannot be accessed by the system`). The Lambda packaging helper was not run with another Python version as a substitute. Run the install command from a normal PowerShell window and then open a new window:
 
 ```powershell
 winget install --id Python.Python.3.12 -e
@@ -57,13 +57,13 @@ terraform plan -out=tfplan
 terraform show tfplan
 ```
 
-Require peer review of the plan, cost estimate, IAM diff, retention settings, Cognito configuration, and CORS origin. Apply only after separate approval:
+Review the plan, account and Region, IAM diff, retention settings, Cognito configuration, CORS origin, and expected costs. The owner has authorized the portfolio deployment, but do not apply until the account identity and exact plan have been verified in the active session:
 
 ```bash
 terraform apply tfplan
 ```
 
-This repository's automated checks use `init -backend=false` and `validate`; they do not create AWS resources. Do not run `apply` for the purposes of this portfolio project.
+The repository CI checks use `init -backend=false` and `validate`; they do not create AWS resources. `terraform apply` creates billable AWS resources and must only be run against the verified portfolio account with the reviewed plan. The deployment is temporary: complete the API tests and evidence capture, then follow the controlled teardown section below.
 
 The first successful `terraform init -backend=false` creates `terraform/.terraform.lock.hcl` with the selected provider checksums. Keep that lockfile under version control; Terraform uses it on later init runs unless `-upgrade` is explicitly requested. Do not delete it to bypass provider issues. The provider versions are exactly pinned in `versions.tf`.
 

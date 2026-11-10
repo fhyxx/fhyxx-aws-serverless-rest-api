@@ -166,7 +166,7 @@ resource "aws_apigatewayv2_api" "http" {
   cors_configuration {
     allow_headers = ["authorization", "content-type"]
     allow_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
-    allow_origins = ["https://localhost"]
+    allow_origins = var.cors_allowed_origins
     max_age       = 300
   }
   tags = { Project = var.project_name }
