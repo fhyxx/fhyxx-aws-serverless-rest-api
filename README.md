@@ -55,7 +55,7 @@ terraform -chdir=terraform init -backend=false
 terraform -chdir=terraform validate
 ```
 
-The CI workflow runs those checks on Python 3.12 and Terraform 1.9.8. Terraform init downloads providers but does not create AWS resources. No `terraform plan` or `apply` is needed for local validation.
+The CI workflow runs those checks on Python 3.12 and Terraform 1.16.6. Terraform provider versions are pinned and the committed lockfile is checked in read-only mode on CI. Terraform init downloads providers but does not create AWS resources. No `terraform plan` or `apply` is needed for local validation.
 
 ## API contract and example
 
