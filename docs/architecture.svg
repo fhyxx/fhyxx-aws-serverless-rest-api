@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="760" viewBox="0 0 1440 760" role="img" aria-labelledby="title desc">
+<title id="title">AWS Serverless Task Management REST API architecture</title>
+<desc id="desc">Client sends a Cognito JWT to API Gateway. API Gateway validates the token and route scopes, then invokes a Python Lambda handler. The handler calls the task service and DynamoDB repository. Data is stored in a single DynamoDB table partitioned by authenticated user. Lambda writes operational logs to CloudWatch.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#8da5c7"/></marker>
+  <style>
+    .bg{fill:#0b1424}.panel{fill:#121f33;stroke:#344966;stroke-width:2}.aws{fill:#172d49;stroke:#5b8fc8;stroke-width:2}.security{fill:#302b49;stroke:#a58be2;stroke-width:2}.data{fill:#173a38;stroke:#62b8a5;stroke-width:2}.logging{fill:#382f20;stroke:#caa45f;stroke-width:2}.h{font:700 24px Arial,sans-serif;fill:#f1f5fb}.sub{font:16px Arial,sans-serif;fill:#c0cde0}.small{font:14px Arial,sans-serif;fill:#a9bad1}.label{font:700 14px Arial,sans-serif;fill:#c7d7ee;letter-spacing:1px}.arrow{stroke:#8da5c7;stroke-width:3;fill:none;marker-end:url(#arrow)}.dashed{stroke-dasharray:8 7}
+  </style>
+</defs>
+<rect class="bg" width="1440" height="760" rx="28"/>
+<text x="72" y="72" class="label">APPLICATION ARCHITECTURE</text>
+<text x="72" y="112" class="h" style="font-size:34px">AWS Serverless Task Management REST API</text>
+<text x="72" y="145" class="sub">Authenticated CRUD · user-scoped data access · infrastructure defined with Terraform</text>
+
+<rect x="70" y="245" width="190" height="150" rx="18" class="panel"/>
+<text x="165" y="292" text-anchor="middle" class="h">Client</text>
+<text x="165" y="326" text-anchor="middle" class="sub">Web / mobile app</text>
+<text x="165" y="355" text-anchor="middle" class="small">Bearer JWT</text>
+
+<rect x="350" y="220" width="270" height="200" rx="18" class="aws"/>
+<text x="485" y="266" text-anchor="middle" class="h">API Gateway</text>
+<text x="485" y="298" text-anchor="middle" class="sub">HTTP API</text>
+<line x1="385" y1="320" x2="585" y2="320" stroke="#45698f"/>
+<text x="485" y="350" text-anchor="middle" class="small">JWT authorizer</text>
+<text x="485" y="375" text-anchor="middle" class="small">tasks/read · tasks/write</text>
+
+<rect x="350" y="500" width="270" height="150" rx="18" class="security"/>
+<text x="485" y="548" text-anchor="middle" class="h">Amazon Cognito</text>
+<text x="485" y="581" text-anchor="middle" class="sub">User Pool + resource server</text>
+<text x="485" y="610" text-anchor="middle" class="small">OAuth authorization code + PKCE</text>
+
+<rect x="720" y="220" width="250" height="200" rx="18" class="aws"/>
+<text x="845" y="266" text-anchor="middle" class="h">AWS Lambda</text>
+<text x="845" y="298" text-anchor="middle" class="sub">Python 3.12 handler</text>
+<line x1="755" y1="320" x2="935" y2="320" stroke="#45698f"/>
+<text x="845" y="350" text-anchor="middle" class="small">Route + response mapping</text>
+<text x="845" y="375" text-anchor="middle" class="small">Trusted JWT subject (sub)</text>
+
+<rect x="1080" y="190" width="285" height="115" rx="18" class="panel"/>
+<text x="1222" y="235" text-anchor="middle" class="h">Task service</text>
+<text x="1222" y="270" text-anchor="middle" class="sub">Use-case / business logic</text>
+
+<rect x="1080" y="350" width="285" height="115" rx="18" class="panel"/>
+<text x="1222" y="395" text-anchor="middle" class="h">DynamoDB repository</text>
+<text x="1222" y="430" text-anchor="middle" class="sub">User-scoped persistence</text>
+
+<rect x="1080" y="525" width="285" height="125" rx="18" class="data"/>
+<text x="1222" y="570" text-anchor="middle" class="h">DynamoDB table</text>
+<text x="1222" y="602" text-anchor="middle" class="sub">PK: USER#{sub}</text>
+<text x="1222" y="628" text-anchor="middle" class="small">SK: TASK#{uuid}</text>
+
+<rect x="720" y="525" width="250" height="125" rx="18" class="logging"/>
+<text x="845" y="570" text-anchor="middle" class="h">CloudWatch Logs</text>
+<text x="845" y="603" text-anchor="middle" class="sub">Structured operational logs</text>
+<text x="845" y="628" text-anchor="middle" class="small">Finite retention</text>
+
+<path d="M260 320 H350" class="arrow"/>
+<path d="M485 420 V500" class="arrow dashed"/>
+<text x="505" y="465" class="small">Token validation</text>
+<path d="M620 320 H720" class="arrow"/>
+<path d="M970 270 H1080" class="arrow"/>
+<path d="M1222 305 V350" class="arrow"/>
+<path d="M1222 465 V525" class="arrow"/>
+<path d="M845 420 V525" class="arrow"/>
+<text x="860" y="480" class="small">Logs</text>
+
+<text x="72" y="710" class="small">Security boundary: API Gateway validates JWT and route scopes; Lambda derives ownership from the validated sub claim.</text>
+</svg>
