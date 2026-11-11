@@ -1,5 +1,11 @@
 # Architecture
 
+![AWS Serverless Task Management REST API architecture](architecture.svg)
+
+[Open the standalone SVG diagram](architecture.svg) · [View the editable Mermaid source](#mermaid-source)
+
+## Mermaid source
+
 ```mermaid
 flowchart LR
   U[Client] -->|Bearer Cognito JWT| A[API Gateway HTTP API]
