@@ -74,7 +74,9 @@ List requests accept `limit` from 1 to 100 (default 20) and an opaque `cursor` r
 
 ## Architecture and security
 
-Read [architecture](docs/architecture.md), [security decisions](docs/security-decisions.md), and [deployment instructions](docs/deployment.md). The JWT authorizer checks the Cognito issuer, signature, expiry, not-before time and client audience; route-specific custom scopes are checked by API Gateway. Owner keys are generated from the trusted `sub` claim. Scope enforcement is not ownership enforcement: bodies cannot set identity or storage keys, and every DynamoDB access remains user-partition scoped. Unit tests exercise the Lambda boundary with mocked JWT claims; they do not simulate API Gateway's scope enforcement. DynamoDB IAM is restricted to one table; PITR, service encryption and deletion protection are configured. API and Lambda logs have explicit retention.
+![AWS Serverless Task Management REST API architecture](docs/architecture.svg)
+
+Read [architecture and rendered diagram](docs/architecture.md) ([standalone SVG](docs/architecture.svg)), [security decisions](docs/security-decisions.md), and [deployment instructions](docs/deployment.md). The JWT authorizer checks the Cognito issuer, signature, expiry, not-before time and client audience; route-specific custom scopes are checked by API Gateway. Owner keys are generated from the trusted `sub` claim. Scope enforcement is not ownership enforcement: bodies cannot set identity or storage keys, and every DynamoDB access remains user-partition scoped. Unit tests exercise the Lambda boundary with mocked JWT claims; they do not simulate API Gateway's scope enforcement. DynamoDB IAM is restricted to one table; PITR, service encryption and deletion protection are configured. API and Lambda logs have explicit retention.
 
 ## Limitations and decisions before production
 
